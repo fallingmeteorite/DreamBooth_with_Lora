@@ -31,6 +31,7 @@ Press any key to continue . . .
 安装会有点慢，请耐心等待
 =============================================
 ！！！！！下面有许多设置，按我的来，懂的可以自己改！！！！！
+点击“配置accelerate”
 #
 #
 #
@@ -126,8 +127,8 @@ Please select a choice using the arrow or number keys, and selecting with enter
 ============================================
 ！！！第三步：启动！！！
 选择你要启动的
-（1）只启动LORA训练
-（2）启动DreamBooth含有LORA
+（1）启动TF_lora_GUI
+（2）启动DB_lora_GUI
 二选一，点击按钮。
 待命令窗口出现“To create a public link, set `share=True` in `launch()`.”
 在浏览器输入网址“http://127.0.0.1:7860”
@@ -138,21 +139,20 @@ Please select a choice using the arrow or number keys, and selecting with enter
 点击"进入教程网页"按钮
 将会跳转到网页
 教程适用于第二个启动
-即（2）启动DreamBooth含有LORA
+即（2）启动DB_lora_GUI
 ============================================
 ！！！退出！！！
-等到要关闭时，点击“关闭所有已启动的程序”按钮
-在点击“退出程序”按钮，关闭界面。
+点击“退出GUI程序”按钮，关闭界面。
 ============================================
 问题解答：
 A:怎么使用？
-B:程序窗口的图片就是，去B站找。
+B:去B站找。
 ================
 A:启动时，出现“你已经开启了，点我退出”怎么办？
 B:这表示你已经启动，请直接访问网址 http://127.0.0.1:7860。
 ================
 A:确定没启动，但启动时，出现“你已经开启了，点我退出”怎么办？
-B:点击“关闭所有已启动的训练”在重试。
+B:点击“关闭所有进程”在重试。
 ================
 A:训练时报错：The paging file is too small for this operation to complete. Error loading "XXXXX" or one of its dependencies.
 翻译为页面文件太小，无法完成操作
@@ -178,7 +178,7 @@ error: subprocess-exited-with-error
 ╰─> See above for output.
 
 note: This error originates from a subprocess, and is likely not a problem with pip.
-B:请开加速器，群里的github加速器
+B:请开加速器，即启动github加速
 ==================
 ！！！！如果出现在训练时的问题，请问下大佬，我只是为你准备好了软件。！！！！
 ！！！！最后，感谢使用！！！！

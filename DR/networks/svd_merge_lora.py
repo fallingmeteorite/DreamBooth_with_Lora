@@ -23,16 +23,16 @@ def load_state_dict(file_name, dtype):
   return sd
 
 
-def save_to_file(file_name, model, state_dict, dtype):
+def save_to_file(file_name, state_dict, dtype):
   if dtype is not None:
     for key in list(state_dict.keys()):
       if type(state_dict[key]) == torch.Tensor:
         state_dict[key] = state_dict[key].to(dtype)
 
   if os.path.splitext(file_name)[1] == '.safetensors':
-    save_file(model, file_name)
+    save_file(state_dict, file_name)
   else:
-    torch.save(model, file_name)
+    torch.save(state_dict, file_name)
 
 
 def merge_lora_models(models, ratios, new_rank, new_conv_rank, device, merge_dtype):
@@ -77,6 +77,10 @@ def merge_lora_models(models, ratios, new_rank, new_conv_rank, device, merge_dty
 
       # W <- W + U * D
       scale = (alpha / network_dim)
+
+      if device:                      # and isinstance(scale, torch.Tensor):
+        scale = scale.to(device)
+
       if not conv2d:        # linear
         weight = weight + ratio * (up_weight @ down_weight) * scale
       elif kernel_size == (1, 1):
@@ -105,6 +109,7 @@ def merge_lora_models(models, ratios, new_rank, new_conv_rank, device, merge_dty
           mat = mat.squeeze()
 
       module_new_rank = new_conv_rank if conv2d_3x3 else new_rank
+      module_new_rank = min(module_new_rank, in_dim, out_dim)                           # LoRA rank cannot exceed the original dim
 
       U, S, Vh = torch.linalg.svd(mat)
 
@@ -156,10 +161,10 @@ def merge(args):
   state_dict = merge_lora_models(args.models, args.ratios, args.new_rank, new_conv_rank, args.device, merge_dtype)
 
   print(f"saving model to: {args.save_to}")
-  save_to_file(args.save_to, state_dict, state_dict, save_dtype)
+  save_to_file(args.save_to, state_dict, save_dtype)
 
 
-if __name__ == '__main__':
+def setup_parser() -> argparse.ArgumentParser:
   parser = argparse.ArgumentParser()
   parser.add_argument("--save_precision", type=str, default=None,
                       choices=[None, "float", "fp16", "bf16"], help="precision in saving, same to merging if omitted / 保存時に精度を変更して保存する、省略時はマージ時の精度と同じ")
@@ -176,6 +181,12 @@ if __name__ == '__main__':
   parser.add_argument("--new_conv_rank", type=int, default=None,
                       help="Specify rank of output LoRA for Conv2d 3x3, None for same as new_rank / 出力するConv2D 3x3 LoRAのrank (dim)、Noneでnew_rankと同じ")
   parser.add_argument("--device", type=str, default=None, help="device to use, cuda for GPU / 計算を行うデバイス、cuda でGPUを使う")
+
+  return parser
+
+
+if __name__ == '__main__':
+  parser = setup_parser()
 
   args = parser.parse_args()
   merge(args)

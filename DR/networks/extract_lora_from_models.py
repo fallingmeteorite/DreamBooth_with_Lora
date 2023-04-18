@@ -103,7 +103,8 @@ def svd(args):
 
       if args.device:
         mat = mat.to(args.device)
-      # print(mat.size(), mat.device, rank, in_dim, out_dim)
+
+      # print(lora_name, mat.size(), mat.device, rank, in_dim, out_dim)
       rank = min(rank, in_dim, out_dim)                           # LoRA rank cannot exceed the original dim
 
       if conv2d:
@@ -121,43 +122,33 @@ def svd(args):
       Vh = Vh[:rank, :]
 
       dist = torch.cat([U.flatten(), Vh.flatten()])
-      # hi_val = torch.quantile(dist, CLAMP_QUANTILE)
-      # low_val = -hi_val
+      hi_val = torch.quantile(dist, CLAMP_QUANTILE)
+      low_val = -hi_val
 
-      # U = U.clamp(low_val, hi_val)
-      # Vh = Vh.clamp(low_val, hi_val)
+      U = U.clamp(low_val, hi_val)
+      Vh = Vh.clamp(low_val, hi_val)
 
       if conv2d:
         U = U.reshape(out_dim, rank, 1, 1)
         Vh = Vh.reshape(rank, in_dim, kernel_size[0], kernel_size[1])
 
-      U = U.to("cuda").contiguous()
-      Vh = Vh.to("cuda").contiguous()
+      U = U.to("cpu").contiguous()
+      Vh = Vh.to("cpu").contiguous()
 
       lora_weights[lora_name] = (U, Vh)
 
   # make state dict for LoRA
-  lora_network_o.apply_to(text_encoder_o, unet_o, text_encoder_different, True)   # to make state dict
-  lora_sd = lora_network_o.state_dict()
-  print(f"LoRA has {len(lora_sd)} weights.")
-
-  for key in list(lora_sd.keys()):
-    if "alpha" in key:
-      continue
-
-    lora_name = key.split('.')[0]
-    i = 0 if "lora_up" in key else 1
-
-    weights = lora_weights[lora_name][i]
-    # print(key, i, weights.size(), lora_sd[key].size())
-    # if len(lora_sd[key].size()) == 4:
-    #   weights = weights.unsqueeze(2).unsqueeze(3)
-
-    assert weights.size() == lora_sd[key].size(), f"size unmatch: {key}"
-    lora_sd[key] = weights
+  lora_sd = {}
+  for lora_name, (up_weight, down_weight) in lora_weights.items():
+    lora_sd[lora_name + '.lora_up.weight'] = up_weight
+    lora_sd[lora_name + '.lora_down.weight'] = down_weight
+    lora_sd[lora_name + '.alpha'] = torch.tensor(down_weight.size()[0])
 
   # load state dict to LoRA and save it
-  info = lora_network_o.load_state_dict(lora_sd)
+  lora_network_save, lora_sd = lora.create_network_from_weights(1.0, None, None, text_encoder_o, unet_o, weights_sd=lora_sd)
+  lora_network_save.apply_to(text_encoder_o, unet_o)  # create internal module references for state_dict  
+
+  info = lora_network_save.load_state_dict(lora_sd)
   print(f"Loading extracted LoRA weights: {info}")
 
   dir_name = os.path.dirname(args.save_to)
@@ -167,11 +158,11 @@ def svd(args):
   # minimum metadata
   metadata = {"ss_network_module": "networks.lora", "ss_network_dim": str(args.dim), "ss_network_alpha": str(args.dim)}
 
-  lora_network_o.save_weights(args.save_to, save_dtype, metadata)
+  lora_network_save.save_weights(args.save_to, save_dtype, metadata)
   print(f"LoRA weights are saved to: {args.save_to}")
 
 
-if __name__ == '__main__':
+def setup_parser() -> argparse.ArgumentParser:
   parser = argparse.ArgumentParser()
   parser.add_argument("--v2", action='store_true',
                       help='load Stable Diffusion v2.x model / Stable Diffusion 2.xのモデルを読み込む')
@@ -187,6 +178,12 @@ if __name__ == '__main__':
   parser.add_argument("--conv_dim", type=int, default=None,
                       help="dimension (rank) of LoRA for Conv2d-3x3 (default None, disabled) / LoRAのConv2d-3x3の次元数（rank）（デフォルトNone、適用なし）")
   parser.add_argument("--device", type=str, default=None, help="device to use, cuda for GPU / 計算を行うデバイス、cuda でGPUを使う")
+
+  return parser
+
+
+if __name__ == '__main__':
+  parser = setup_parser()
 
   args = parser.parse_args()
   svd(args)

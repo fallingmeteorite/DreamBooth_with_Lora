@@ -20,7 +20,6 @@ from library.common_gui import (
     run_cmd_training,
     # set_legacy_8bitadam,
     update_my_data,
-    check_if_model_exist,
 )
 from library.tensorboard_gui import (
     gradio_tensorboard,
@@ -29,7 +28,6 @@ from library.tensorboard_gui import (
 )
 from library.utilities import utilities_tab
 from library.sampler_gui import sample_gradio_config, run_cmd_sample
-from easygui import msgbox
 
 folder_symbol = '\U0001f4c2'  # 📂
 refresh_symbol = '\U0001f504'  # 🔄
@@ -104,10 +102,7 @@ def save_configuration(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,
-    additional_parameters,
-    vae_batch_size,
-    min_snr_gamma,weighted_captions,
+    sample_prompts,additional_parameters,
 ):
     # Get list of function parameters and values
     parameters = list(locals().items())
@@ -154,8 +149,7 @@ def save_configuration(
     return file_path
 
 
-def open_configuration(
-    ask_for_file,
+def open_config_file(
     file_path,
     pretrained_model_name_or_path,
     v2,
@@ -219,20 +213,13 @@ def open_configuration(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,
-    additional_parameters,
-    vae_batch_size,
-    min_snr_gamma,weighted_captions,
+    sample_prompts,additional_parameters,
 ):
     # Get list of function parameters and values
     parameters = list(locals().items())
 
-    ask_for_file = True if ask_for_file.get('label') == 'True' else False
-
     original_file_path = file_path
-
-    if ask_for_file:
-        file_path = get_file_path(file_path)
+    file_path = get_file_path(file_path)
 
     if not file_path == '' and not file_path == None:
         # load variables from JSON file
@@ -248,7 +235,7 @@ def open_configuration(
     values = [file_path]
     for key, value in parameters:
         # Set the value in the dictionary to the corresponding value in `my_data`, or the default value if not found
-        if not key in ['ask_for_file', 'file_path']:
+        if not key in ['file_path']:
             values.append(my_data.get(key, value))
     return tuple(values)
 
@@ -316,18 +303,8 @@ def train_model(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,
-    additional_parameters,
-    vae_batch_size,
-    min_snr_gamma,weighted_captions,
+    sample_prompts,additional_parameters,
 ):
-    if check_if_model_exist(output_name, output_dir, save_model_as):
-        return
-    
-    if optimizer == 'Adafactor' and lr_warmup != '0':
-        msgbox("Warning: lr_scheduler is set to 'Adafactor', so 'LR warmup (% of steps)' will be considered 0.", title="Warning")
-        lr_warmup = '0'
-
     # create caption json file
     if generate_caption_database:
         if not os.path.exists(train_dir):
@@ -379,10 +356,8 @@ def train_model(
     image_num = len(
         [
             f
-            for f, lower_f in (
-                (file, file.lower()) for file in os.listdir(image_folder)
-            )
-            if lower_f.endswith(('.jpg', '.jpeg', '.png', '.webp'))
+            for f in os.listdir(image_folder)
+            if f.endswith('.jpg') or f.endswith('.png') or f.endswith('.webp')
         ]
     )
     print(f'image_num = {image_num}')
@@ -411,8 +386,6 @@ def train_model(
         run_cmd += ' --v_parameterization'
     if train_text_encoder:
         run_cmd += ' --train_text_encoder'
-    if weighted_captions:
-        run_cmd += ' --weighted_captions'
     run_cmd += (
         f' --pretrained_model_name_or_path="{pretrained_model_name_or_path}"'
     )
@@ -485,8 +458,6 @@ def train_model(
         caption_dropout_rate=caption_dropout_rate,
         noise_offset=noise_offset,
         additional_parameters=additional_parameters,
-        vae_batch_size=vae_batch_size,
-        min_snr_gamma=min_snr_gamma,
     )
 
     run_cmd += run_cmd_sample(
@@ -521,8 +492,8 @@ def remove_doublequote(file_path):
 
 
 def finetune_tab():
-    dummy_db_true = gr.Label(value=True, visible=False)
-    dummy_db_false = gr.Label(value=False, visible=False)
+    dummy_ft_true = gr.Label(value=True, visible=False)
+    dummy_ft_false = gr.Label(value=False, visible=False)
     gr.Markdown('Train a custom model using kohya finetune python code...')
 
     (
@@ -530,7 +501,6 @@ def finetune_tab():
         button_save_config,
         button_save_as_config,
         config_file_name,
-        button_load_config,
     ) = gradio_config()
 
     (
@@ -651,11 +621,7 @@ def finetune_tab():
                 latent_metadata_filename = gr.Textbox(
                     label='Latent metadata filename', value='meta_lat.json'
                 )
-            with gr.Row():
                 full_path = gr.Checkbox(label='Use full path', value=True)
-                weighted_captions = gr.Checkbox(
-                    label='Weighted captions', value=False
-                )
     with gr.Tab('Training parameters'):
         (
             learning_rate,
@@ -705,10 +671,7 @@ def finetune_tab():
                 bucket_reso_steps,
                 caption_dropout_every_n_epochs,
                 caption_dropout_rate,
-                noise_offset,
-                additional_parameters,
-                vae_batch_size,
-                min_snr_gamma,
+                noise_offset,additional_parameters,
             ) = gradio_advanced_training()
             color_aug.change(
                 color_aug_changed,
@@ -801,39 +764,28 @@ def finetune_tab():
         sample_every_n_steps,
         sample_every_n_epochs,
         sample_sampler,
-        sample_prompts,
-        additional_parameters,
-        vae_batch_size,
-        min_snr_gamma,
-        weighted_captions,
+        sample_prompts,additional_parameters,
     ]
 
     button_run.click(train_model, inputs=settings_list)
 
     button_open_config.click(
-        open_configuration,
-        inputs=[dummy_db_true, config_file_name] + settings_list,
-        outputs=[config_file_name] + settings_list,
-        show_progress=False,
-    )
-
-    button_load_config.click(
-        open_configuration,
-        inputs=[dummy_db_false, config_file_name] + settings_list,
+        open_config_file,
+        inputs=[config_file_name] + settings_list,
         outputs=[config_file_name] + settings_list,
         show_progress=False,
     )
 
     button_save_config.click(
         save_configuration,
-        inputs=[dummy_db_false, config_file_name] + settings_list,
+        inputs=[dummy_ft_false, config_file_name] + settings_list,
         outputs=[config_file_name],
         show_progress=False,
     )
 
     button_save_as_config.click(
         save_configuration,
-        inputs=[dummy_db_true, config_file_name] + settings_list,
+        inputs=[dummy_ft_true, config_file_name] + settings_list,
         outputs=[config_file_name],
         show_progress=False,
     )

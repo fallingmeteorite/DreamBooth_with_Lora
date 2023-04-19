@@ -26,7 +26,6 @@ from library.common_gui import (
     gradio_source_model,
     # set_legacy_8bitadam,
     update_my_data,
-    check_if_model_exist,
 )
 from library.tensorboard_gui import (
     gradio_tensorboard,
@@ -105,10 +104,7 @@ def save_configuration(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,
-    additional_parameters,
-    vae_batch_size,
-    min_snr_gamma,weighted_captions,
+    sample_prompts,additional_parameters,
 ):
     # Get list of function parameters and values
     parameters = list(locals().items())
@@ -156,7 +152,6 @@ def save_configuration(
 
 
 def open_configuration(
-    ask_for_file,
     file_path,
     pretrained_model_name_or_path,
     v2,
@@ -214,20 +209,13 @@ def open_configuration(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,
-    additional_parameters,
-    vae_batch_size,
-    min_snr_gamma,weighted_captions,
+    sample_prompts,additional_parameters,
 ):
     # Get list of function parameters and values
     parameters = list(locals().items())
 
-    ask_for_file = True if ask_for_file.get('label') == 'True' else False
-
     original_file_path = file_path
-
-    if ask_for_file:
-        file_path = get_file_path(file_path)
+    file_path = get_file_path(file_path)
 
     if not file_path == '' and not file_path == None:
         # load variables from JSON file
@@ -243,7 +231,7 @@ def open_configuration(
     values = [file_path]
     for key, value in parameters:
         # Set the value in the dictionary to the corresponding value in `my_data`, or the default value if not found
-        if not key in ['ask_for_file', 'file_path']:
+        if not key in ['file_path']:
             values.append(my_data.get(key, value))
     return tuple(values)
 
@@ -305,10 +293,7 @@ def train_model(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,
-    additional_parameters,
-    vae_batch_size,
-    min_snr_gamma,weighted_captions,
+    sample_prompts,additional_parameters,
 ):
     if pretrained_model_name_or_path == '':
         msgbox('Source model information is missing')
@@ -331,76 +316,38 @@ def train_model(
         msgbox('Output folder path is missing')
         return
 
-    if check_if_model_exist(output_name, output_dir, save_model_as):
-        return
-    
-    if optimizer == 'Adafactor' and lr_warmup != '0':
-        msgbox("Warning: lr_scheduler is set to 'Adafactor', so 'LR warmup (% of steps)' will be considered 0.", title="Warning")
-        lr_warmup = '0'
-
-    # Get a list of all subfolders in train_data_dir, excluding hidden folders
+    # Get a list of all subfolders in train_data_dir
     subfolders = [
         f
         for f in os.listdir(train_data_dir)
         if os.path.isdir(os.path.join(train_data_dir, f))
-        and not f.startswith('.')
     ]
-
-    # Check if subfolders are present. If not let the user know and return
-    if not subfolders:
-        print(
-            '\033[33mNo subfolders were found in',
-            train_data_dir,
-            " can't train\...033[0m",
-        )
-        return
 
     total_steps = 0
 
     # Loop through each subfolder and extract the number of repeats
     for folder in subfolders:
         # Extract the number of repeats from the folder name
-        try:
-            repeats = int(folder.split('_')[0])
-        except ValueError:
-            print(
-                '\033[33mSubfolder',
-                folder,
-                "does not have a proper repeat value, please correct the name or remove it... can't train...\033[0m",
-            )
-            continue
+        repeats = int(folder.split('_')[0])
 
         # Count the number of images in the folder
         num_images = len(
             [
                 f
-                for f, lower_f in (
-                    (file, file.lower())
-                    for file in os.listdir(
-                        os.path.join(train_data_dir, folder)
-                    )
-                )
-                if lower_f.endswith(('.jpg', '.jpeg', '.png', '.webp'))
+                for f in os.listdir(os.path.join(train_data_dir, folder))
+                if f.endswith('.jpg')
+                or f.endswith('.jpeg')
+                or f.endswith('.png')
+                or f.endswith('.webp')
             ]
         )
 
-        if num_images == 0:
-            print(f'{folder} folder contain no images, skipping...')
-        else:
-            # Calculate the total number of steps for this folder
-            steps = repeats * num_images
-            total_steps += steps
+        # Calculate the total number of steps for this folder
+        steps = repeats * num_images
+        total_steps += steps
 
-            # Print the result
-            print('\033[33mFolder', folder, ':', steps, 'steps\033[0m')
-
-    if total_steps == 0:
-        print(
-            '\033[33mNo images were found in folder',
-            train_data_dir,
-            '... please rectify!\033[0m',
-        )
-        return
+        # Print the result
+        print(f'Folder {folder}: {steps} steps')
 
     # Print the result
     # print(f"{total_steps} total steps")
@@ -409,7 +356,7 @@ def train_model(
         reg_factor = 1
     else:
         print(
-            '\033[94mRegularisation images are used... Will double the number of steps required...\033[0m'
+            'Regularisation images are used... Will double the number of steps required...'
         )
         reg_factor = 2
 
@@ -425,9 +372,7 @@ def train_model(
     print(f'max_train_steps = {max_train_steps}')
 
     # calculate stop encoder training
-    if int(stop_text_encoder_training_pct) == -1:
-        stop_text_encoder_training = -1
-    elif stop_text_encoder_training_pct == None:
+    if stop_text_encoder_training_pct == None:
         stop_text_encoder_training = 0
     else:
         stop_text_encoder_training = math.ceil(
@@ -447,8 +392,6 @@ def train_model(
         run_cmd += ' --enable_bucket'
     if no_token_padding:
         run_cmd += ' --no_token_padding'
-    if weighted_captions:
-        run_cmd += ' --weighted_captions'
     run_cmd += (
         f' --pretrained_model_name_or_path="{pretrained_model_name_or_path}"'
     )
@@ -523,8 +466,6 @@ def train_model(
         caption_dropout_rate=caption_dropout_rate,
         noise_offset=noise_offset,
         additional_parameters=additional_parameters,
-        vae_batch_size=vae_batch_size,
-        min_snr_gamma=min_snr_gamma,
     )
 
     run_cmd += run_cmd_sample(
@@ -565,7 +506,6 @@ def dreambooth_tab(
         button_save_config,
         button_save_as_config,
         config_file_name,
-        button_load_config,
     ) = gradio_config()
 
     (
@@ -678,7 +618,7 @@ def dreambooth_tab(
                 placeholder='512,512',
             )
             stop_text_encoder_training = gr.Slider(
-                minimum=-1,
+                minimum=0,
                 maximum=100,
                 value=0,
                 step=1,
@@ -692,9 +632,6 @@ def dreambooth_tab(
                 )
                 gradient_accumulation_steps = gr.Number(
                     label='Gradient accumulate steps', value='1'
-                )
-                weighted_captions = gr.Checkbox(
-                    label='Weighted captions', value=False
                 )
             with gr.Row():
                 prior_loss_weight = gr.Number(
@@ -734,8 +671,6 @@ def dreambooth_tab(
                 caption_dropout_rate,
                 noise_offset,
                 additional_parameters,
-                vae_batch_size,
-                min_snr_gamma,
             ) = gradio_advanced_training()
             color_aug.change(
                 color_aug_changed,
@@ -836,21 +771,11 @@ def dreambooth_tab(
         sample_sampler,
         sample_prompts,
         additional_parameters,
-        vae_batch_size,
-        min_snr_gamma,
-        weighted_captions,
     ]
 
     button_open_config.click(
         open_configuration,
-        inputs=[dummy_db_true, config_file_name] + settings_list,
-        outputs=[config_file_name] + settings_list,
-        show_progress=False,
-    )
-
-    button_load_config.click(
-        open_configuration,
-        inputs=[dummy_db_false, config_file_name] + settings_list,
+        inputs=[config_file_name] + settings_list,
         outputs=[config_file_name] + settings_list,
         show_progress=False,
     )

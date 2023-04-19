@@ -6,30 +6,21 @@ If you run on Linux and would like to use the GUI, there is now a port of it as 
 
 ### Table of Contents
 
-- [Tutorials](#tutorials)
-- [Required Dependencies](#required-dependencies)
-  - [Linux/macOS](#linux-and-macos-dependencies)
-- [Installation](#installation)
-    - [Linux/macOS](#linux-and-macos)
-      - [Default Install Locations](#install-location)
-    - [Windows](#windows)
-    - [CUDNN 8.6](#optional--cudnn-86)
-- [Upgrading](#upgrading)
-  - [Windows](#windows-upgrade)
-  - [Linux/macOS](#linux-and-macos-upgrade)
-- [Launching the GUI](#starting-gui-service)
-  - [Windows](#launching-the-gui-on-windows)
-  - [Linux/macOS](#launching-the-gui-on-linux-and-macos)
-  - [Direct Launch via Python Script](#launching-the-gui-directly-using-kohyaguipy)
-- [Dreambooth](#dreambooth)
-- [Finetune](#finetune)
-- [Train Network](#train-network)
-- [LoRA](#lora)
-- [Troubleshooting](#troubleshooting)
-  - [Page File Limit](#page-file-limit)
-  - [No module called tkinter](#no-module-called-tkinter)
-  - [FileNotFoundError](#filenotfounderror)
-- [Change History](#change-history)
+- [Tutorials](https://github.com/bmaltais/kohya_ss#tutorials)
+- [Required Dependencies](https://github.com/bmaltais/kohya_ss#required-dependencies)
+- [Installation](https://github.com/bmaltais/kohya_ss#installation)
+    - [CUDNN 8.6](https://github.com/bmaltais/kohya_ss#optional-cudnn-86)
+- [Upgrading](https://github.com/bmaltais/kohya_ss#upgrading)
+- [Launching the GUI](https://github.com/bmaltais/kohya_ss#launching-the-gui)
+- [Dreambooth](https://github.com/bmaltais/kohya_ss#dreambooth)
+- [Finetune](https://github.com/bmaltais/kohya_ss#finetune)
+- [Train Network](https://github.com/bmaltais/kohya_ss#train-network)
+- [LoRA](https://github.com/bmaltais/kohya_ss#lora)
+- [Troubleshooting](https://github.com/bmaltais/kohya_ss#troubleshooting)
+  - [Page File Limit](https://github.com/bmaltais/kohya_ss#page-file-limit)
+  - [No module called tkinter](https://github.com/bmaltais/kohya_ss#no-module-called-tkinter)
+  - [FileNotFoundError](https://github.com/bmaltais/kohya_ss#filenotfounderror)
+- [Change History](https://github.com/bmaltais/kohya_ss#change-history)
 
 ## Tutorials
 
@@ -48,75 +39,46 @@ If you run on Linux and would like to use the GUI, there is now a port of it as 
 - Install [Git](https://git-scm.com/download/win)
 - Install [Visual Studio 2015, 2017, 2019, and 2022 redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 
-### Linux and macOS dependencies
-
-These dependencies are taken care of via `setup.sh` in the installation section. No additional steps should be needed unless the scripts inform you otherwise.
-
 ## Installation
 
-### Runpod
-Follow the instructions found in this discussion: https://github.com/bmaltais/kohya_ss/discussions/379
-
-### Linux and macOS
+### Ubuntu
 In the terminal, run
 
 ```
 git clone https://github.com/bmaltais/kohya_ss.git
 cd kohya_ss
-# May need to chmod +x ./setup.sh if you're on a machine with stricter security.
-# There are additional options if needed for a runpod environment.
-# Call 'setup.sh -h' or 'setup.sh --help' for more information.
-./setup.sh
+bash ubuntu_setup.sh
 ```
 
-Setup.sh help included here:
-
-```bash
-Kohya_SS Installation Script for POSIX operating systems.
-
-The following options are useful in a runpod environment,
-but will not affect a local machine install.
-
-Usage:
-  setup.sh -b dev -d /workspace/kohya_ss -g https://mycustom.repo.tld/custom_fork.git
-  setup.sh --branch=dev --dir=/workspace/kohya_ss --git-repo=https://mycustom.repo.tld/custom_fork.git
-
-Options:
-  -b BRANCH, --branch=BRANCH    Select which branch of kohya to check out on new installs.
-  -d DIR, --dir=DIR             The full path you want kohya_ss installed to.
-  -g REPO, --git_repo=REPO      You can optionally provide a git repo to check out for runpod installation. Useful for custom forks.
-  -h, --help                    Show this screen.
-  -i, --interactive             Interactively configure accelerate instead of using default config file.
-  -n, --no-update               Do not update kohya_ss repo. No git pull or clone operations.
-  -p, --public                  Expose public URL in runpod mode. Won't have an effect in other modes.
-  -r, --runpod                  Forces a runpod installation. Useful if detection fails for any reason.
-  -s, --skip-space-check        Skip the 10Gb minimum storage space check.
-  -u, --no-gui                  Skips launching the GUI.
-  -v, --verbose                 Increase verbosity levels up to 3.
-```
-
-#### Install location
-
-The default install location for Linux is where the script is located if a previous installation is detected that location.
-Otherwise, it will fall to `/opt/kohya_ss`. If /opt is not writeable, the fallback is `$HOME/kohya_ss`. Lastly, if all else fails it will simply install to the current folder you are in (PWD).
-
-On macOS and other non-Linux machines, it will first try to detect an install where the script is run from and then run setup there if that's detected. 
-If a previous install isn't found at that location, then it will default install to `$HOME/kohya_ss` followed by where you're currently at if there's no access to $HOME.
-You can override this behavior by specifying an install directory with the -d option.
-
-If you are using the interactive mode, our default values for the accelerate config screen after running the script answer "This machine", "None", "No" for the remaining questions.
-These are the same answers as the Windows install.
+then configure accelerate with the same answers as in the Windows instructions when prompted.
 
 ### Windows
-In the terminal, run:
 
-```
+Give unrestricted script access to powershell so venv can work:
+
+- Run PowerShell as an administrator
+- Run `Set-ExecutionPolicy Unrestricted` and answer 'A'
+- Close PowerShell
+
+Open a regular user Powershell terminal and run the following commands:
+
+```powershell
 git clone https://github.com/bmaltais/kohya_ss.git
 cd kohya_ss
-setup.bat
-```
 
-Then configure accelerate with the same answers as in the MacOS instructions when prompted.
+python -m venv venv
+.\venv\Scripts\activate
+
+pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+pip install --use-pep517 --upgrade -r requirements.txt
+pip install -U -I --no-deps https://github.com/C43H66N12O12S2/stable-diffusion-webui/releases/download/f/xformers-0.0.14.dev0-cp310-cp310-win_amd64.whl
+
+cp .\bitsandbytes_windows\*.dll .\venv\Lib\site-packages\bitsandbytes\
+cp .\bitsandbytes_windows\cextension.py .\venv\Lib\site-packages\bitsandbytes\cextension.py
+cp .\bitsandbytes_windows\main.py .\venv\Lib\site-packages\bitsandbytes\cuda_setup\main.py
+
+accelerate config
+```
 
 ### Optional: CUDNN 8.6
 
@@ -134,13 +96,11 @@ Run the following commands to install:
 python .\tools\cudann_1.8_install.py
 ```
 
-Once the commands have completed successfully you should be ready to use the new version. MacOS support is not tested and has been mostly taken from https://gist.github.com/jstayco/9f5733f05b9dc29de95c4056a023d645
-
 ## Upgrading
 
-The following commands will work from the root directory of the project if you'd prefer to not run scripts.
-These commands will work on any OS.
-```bash
+When a new release comes out, you can upgrade your repo with the following commands in the root directory:
+
+```powershell
 git pull
 
 .\venv\Scripts\activate
@@ -148,64 +108,22 @@ git pull
 pip install --use-pep517 --upgrade -r requirements.txt
 ```
 
-### Windows Upgrade
-When a new release comes out, you can upgrade your repo with the following commands in the root directory:
-
-```powershell
-upgrade.bat
-```
-
-### Linux and macOS Upgrade
-You can cd into the root directory and simply run
-
-```bash
-# Refresh and update everything
-./setup.sh
-
-# This will refresh everything, but NOT clone or pull the git repo.
-./setup.sh --no-git-update
-```
-
 Once the commands have completed successfully you should be ready to use the new version.
 
-# Starting GUI Service
+## Launching the GUI
 
-The following command line arguments can be passed to the scripts on any OS to configure the underlying service.
+To run the GUI, simply use this command:
+
 ```
---listen: the IP address to listen on for connections to Gradio.
---username: a username for authentication. 
---password: a password for authentication. 
---server_port: the port to run the server listener on. 
---inbrowser: opens the Gradio UI in a web browser. 
---share: shares the Gradio UI.
+.\gui.ps1
 ```
 
-### Launching the GUI on Windows
-
-The two scripts to launch the GUI on Windows are gui.ps1 and gui.bat in the root directory.
-You can use whichever script you prefer.
-
-To launch the Gradio UI, run the script in a terminal with the desired command line arguments, for example:
-
-`gui.ps1 --listen 127.0.0.1 --server_port 7860 --inbrowser --share`
-
-or
-
-`gui.bat --listen 127.0.0.1 --server_port 7860 --inbrowser --share`
-
-## Launching the GUI on Linux and macOS
-
-Run the launcher script with the desired command line arguments similar to Windows.
-`gui.sh --listen 127.0.0.1 --server_port 7860 --inbrowser --share`
-
-## Launching the GUI directly using kohya_gui.py
-
-To run the GUI directly bypassing the wrapper scripts, simply use this command from the root project directory:
+or you can also do:
 
 ```
 .\venv\Scripts\activate
 
-python .\kohya_gui.py
+python.exe .\kohya_gui.py
 ```
 
 ## Dreambooth
@@ -232,44 +150,6 @@ python lora_gui.py
 
 Once you have created the LoRA network, you can generate images via auto1111 by installing [this extension](https://github.com/kohya-ss/sd-webui-additional-networks).
 
-### Naming of LoRA
-
-The LoRA supported by `train_network.py` has been named to avoid confusion. The documentation has been updated. The following are the names of LoRA types in this repository.
-
-1. __LoRA-LierLa__ : (LoRA for __Li__ n __e__ a __r__  __La__ yers)
-
-    LoRA for Linear layers and Conv2d layers with 1x1 kernel
-
-2. __LoRA-C3Lier__ : (LoRA for __C__ olutional layers with __3__ x3 Kernel and  __Li__ n __e__ a __r__ layers)
-
-    In addition to 1., LoRA for Conv2d layers with 3x3 kernel 
-    
-LoRA-LierLa is the default LoRA type for `train_network.py` (without `conv_dim` network arg). LoRA-LierLa can be used with [our extension](https://github.com/kohya-ss/sd-webui-additional-networks) for AUTOMATIC1111's Web UI, or with the built-in LoRA feature of the Web UI.
-
-To use LoRA-C3Liar with Web UI, please use our extension.
-
-## Sample image generation during training
-A prompt file might look like this, for example
-
-```
-# prompt 1
-masterpiece, best quality, (1girl), in white shirts, upper body, looking at viewer, simple background --n low quality, worst quality, bad anatomy,bad composition, poor, low effort --w 768 --h 768 --d 1 --l 7.5 --s 28
-
-# prompt 2
-masterpiece, best quality, 1boy, in business suit, standing at street, looking back --n (low quality, worst quality), bad anatomy,bad composition, poor, low effort --w 576 --h 832 --d 2 --l 5.5 --s 40
-```
-
-  Lines beginning with `#` are comments. You can specify options for the generated image with options like `--n` after the prompt. The following can be used.
-
-  * `--n` Negative prompt up to the next option.
-  * `--w` Specifies the width of the generated image.
-  * `--h` Specifies the height of the generated image.
-  * `--d` Specifies the seed of the generated image.
-  * `--l` Specifies the CFG scale of the generated image.
-  * `--s` Specifies the number of steps in the generation.
-
-  The prompt weighting such as `( )` and `[ ]` are working.
-
 ## Troubleshooting
 
 ### Page File Limit
@@ -292,31 +172,114 @@ pip freeze > uninstall.txt
 pip uninstall -r uninstall.txt
 ```
 
-This will store a backup file with your current locally installed pip packages and then uninstall them. Then, redo the installation instructions within the kohya_ss venv.
+This will store your a backup file with your current locally installed pip packages and then uninstall them. Then, redo the installation instructions within the kohya_ss venv.
 
 ## Change History
 
-* 2023/04/17 (v21.5.4)
-    - Fixed a bug that caused an error when loading DyLoRA with the `--network_weight` option in `train_network.py`.
-    - Added the `--recursive` option to each script in the `finetune` folder to process folders recursively. Please refer to [PR #400](https://github.com/kohya-ss/sd-scripts/pull/400/) for details. Thanks to Linaqruf!
-    - Upgrade Gradio to latest release
-    - Fix issue when Adafactor is used as optimizer and LR Warmup is not 0: https://github.com/bmaltais/kohya_ss/issues/617
-    - Added support for DyLoRA in `train_network.py`. Please refer to [here](./train_network_README-ja.md#dylora) for details (currently only in Japanese).
-    - Added support for caching latents to disk in each training script. Please specify __both__ `--cache_latents` and `--cache_latents_to_disk` options.
-        - The files are saved in the same folder as the images with the extension `.npz`. If you specify the `--flip_aug` option, the files with `_flip.npz` will also be saved.
-        - Multi-GPU training has not been tested.
-        - This feature is not tested with all combinations of datasets and training scripts, so there may be bugs.
-    - Added workaround for an error that occurs when training with `fp16` or `bf16` in `fine_tune.py`.
-    - Implemented DyLoRA GUI support. There will now be a new 'DyLoRA Unit` slider when the LoRA type is selected as `kohya DyLoRA` to specify the desired Unit value for DyLoRA training.
-    - Update gui.bat and gui.ps1 based on: https://github.com/bmaltais/kohya_ss/issues/188
-    - Update `setup.bat` to install torch 2.0.0 instead of 1.2.1. If you want to upgrade from 1.2.1 to 2.0.0 run setup.bat again, select 1 to uninstall the previous torch modules, then select 2 for torch 2.0.0
+* 2023/03/09 (v21.2.0):
+    - Fix issue https://github.com/bmaltais/kohya_ss/issues/335
+    - Add option to print LoRA trainer command without executing it
+    - Add support for samples during trainin via a new `Sample images config` accordion in the `Training parameters` tab.
+    - Added new `Additional parameters` under the `Advanced Configuration` section of the `Training parameters` tab to allow for the specifications of parameters not handles by the GUI.
+    - Added support for sample as a new Accordion under the `Training parameters` tab. More info about the prompt options can be found here: https://github.com/kohya-ss/sd-scripts/issues/256#issuecomment-1455005709
+    - There may be problems due to major changes. If you cannot revert back to the previous version when problems occur, please do not update for a while.
+    - Minimum metadata (module name, dim, alpha and network_args) is recorded even with `--no_metadata`, issue https://github.com/kohya-ss/sd-scripts/issues/254
+    - `train_network.py` supports LoRA for Conv2d-3x3 (extended to conv2d with a kernel size not 1x1).
+        - Same as a current version of [LoCon](https://github.com/KohakuBlueleaf/LoCon). __Thank you very much KohakuBlueleaf for your help!__
+        - LoCon will be enhanced in the future. Compatibility for future versions is not guaranteed.
+        - Specify `--network_args` option like: `--network_args "conv_dim=4" "conv_alpha=1"`
+        - [Additional Networks extension](https://github.com/kohya-ss/sd-webui-additional-networks) version 0.5.0 or later is required to use 'LoRA for Conv2d-3x3' in Stable Diffusion web UI.
+        - __Stable Diffusion web UI built-in LoRA does not support 'LoRA for Conv2d-3x3' now. Consider carefully whether or not to use it.__
+    - Merging/extracting scripts also support LoRA for Conv2d-3x3.
+    - Free CUDA memory after sample generation to reduce VRAM usage, issue https://github.com/kohya-ss/sd-scripts/issues/260 
+    - Empty caption doesn't cause error now, issue https://github.com/kohya-ss/sd-scripts/issues/258
+    - Fix sample generation is crashing in Textual Inversion training when using templates, or if height/width is not divisible by 8.
+    - Update documents (Japanese only).
+    - Dependencies are updated, Please [upgrade](#upgrade) the repo.
+    - Add detail dataset config feature by extra config file. Thanks to fur0ut0 for this great contribution!
+        - Documentation is [here](https://github-com.translate.goog/kohya-ss/sd-scripts/blob/main/config_README-ja.md) (only in Japanese currently.)
+        - Specify `.toml` file with `--dataset_config` option.
+        - The options supported under the previous release can be used as is instead of the `.toml` config file.
+        - There might be bugs due to the large scale of update, please report any problems if you find at https://github.com/kohya-ss/sd-scripts/issues.
+    - Add feature to generate sample images in the middle of training for each training scripts.
+        - `--sample_every_n_steps` and `--sample_every_n_epochs` options: frequency to generate.
+        - `--sample_prompts` option: the file contains prompts (each line generates one image.)
+        - The prompt is subset of `gen_img_diffusers.py`. The prompt options `w, h, d, l, s, n` are supported.
+        - `--sample_sampler` option: sampler (scheduler) for generating, such as ddim or k_euler. See help for useable samplers.
+    - Add `--tokenizer_cache_dir` to each training and generation scripts to cache Tokenizer locally from Diffusers.
+        - Scripts will support offline training/generation after caching.
+    - Support letents upscaling for highres. fix, and VAE batch size in `gen_img_diffusers.py` (no documentation yet.)
 
-* 2023/04/09 (v21.5.2)
+    - Sample image generation:
+        A prompt file might look like this, for example
 
-    - Added support for training with weighted captions. Thanks to AI-Casanova for the great contribution! 
-    - Please refer to the PR for details: [PR #336](https://github.com/kohya-ss/sd-scripts/pull/336)
-    - Specify the `--weighted_captions` option. It is available for all training scripts except Textual Inversion and XTI.
-    - This option is also applicable to token strings of the DreamBooth method.
-    - The syntax for weighted captions is almost the same as the Web UI, and you can use things like `(abc)`, `[abc]`, and `(abc:1.23)`. Nesting is also possible.
-    - If you include a comma in the parentheses, the parentheses will not be properly matched in the prompt shuffle/dropout, so do not include a comma in the parentheses.
-    - Run gui.sh from any place
+        ```
+        # prompt 1
+        masterpiece, best quality, 1girl, in white shirts, upper body, looking at viewer, simple background --n low quality, worst quality, bad anatomy,bad composition, poor, low effort --w 768 --h 768 --d 1 --l 7.5 --s 28
+
+        # prompt 2
+        masterpiece, best quality, 1boy, in business suit, standing at street, looking back --n low quality, worst quality, bad anatomy,bad composition, poor, low effort --w 576 --h 832 --d 2 --l 5.5 --s 40
+        ```
+
+        Lines beginning with `#` are comments. You can specify options for the generated image with options like `--n` after the prompt. The following can be used.
+
+        * `--n` Negative prompt up to the next option.
+        * `--w` Specifies the width of the generated image.
+        * `--h` Specifies the height of the generated image.
+        * `--d` Specifies the seed of the generated image.
+        * `--l` Specifies the CFG scale of the generated image.
+        * `--s` Specifies the number of steps in the generation.
+
+        The prompt weighting such as `( )` and `[ ]` are not working.
+
+    Please read [Releases](https://github.com/kohya-ss/sd-scripts/releases) for recent updates.
+
+* 2023/03/05 (v21.1.5):
+    - Add replace underscore with space option to WD14 captioning. Thanks @sALTaccount!
+    - Improve how custom preset is set and handles.
+    - Add support for `--listen` argument. This allow gradio to listen for connections from other devices on the network (or internet). For example: `gui.ps1 --listen "0.0.0.0"` will allow anyone to connect to the gradio webui.
+    - Updated `Resize LoRA` tab to support LoCon resizing. Added new resize
+* 2023/03/05 (v21.1.4):
+    - Removing legacy and confusing use 8bit adam chackbox. It is now configured using the Optimiser drop down list. It will be set properly based on legacy config files.
+* 2023/03/04 (v21.1.3):
+    - Fix progress bar being displayed when not required.
+    - Add support for linux, thank you @devNegative-asm
+* 2023/03/03 (v21.1.2):
+    - Fix issue https://github.com/bmaltais/kohya_ss/issues/277
+    - Fix issue https://github.com/bmaltais/kohya_ss/issues/278 introduce by LoCon project switching to pip module. Make sure to run upgrade.ps1 to install the latest pip requirements for LoCon support.
+* 2023/03/02 (v21.1.1):
+    - Emergency fix for https://github.com/bmaltais/kohya_ss/issues/261
+* 2023/03/02 (v21.1.0):
+    - Add LoCon support (https://github.com/KohakuBlueleaf/LoCon.git) to the Dreambooth LoRA tab. This will allow to create a new type of LoRA that include conv layers as part of the LoRA... hence the name LoCon. LoCon will work with the native Auto1111 implementation of LoRA. If you want to use it with the Kohya_ss additionalNetwork you will need to install this other extension... until Kohya_ss support it natively: https://github.com/KohakuBlueleaf/a1111-sd-webui-locon
+* 2023/03/01 (v21.0.1):
+    - Add warning to tensorboard start if the log information is missing
+    - Fix issue with 8bitadam on older config file load
+* 2023/02/27 (v21.0.0):
+    - Add tensorboard start and stop support to the GUI
+* 2023/02/26 (v20.8.2):
+    - Fix issue https://github.com/bmaltais/kohya_ss/issues/231
+    - Change default for seed to random
+    - Add support for --share argument to `kohya_gui.py` and `gui.ps1`
+    - Implement 8bit adam login to help with the legacy `Use 8bit adam` checkbox that is now superceided by the `Optimizer` dropdown selection. This field will be eventually removed. Kept for now for backward compatibility.
+* 2023/02/23 (v20.8.1):
+    - Fix instability training issue in `train_network.py`.
+        - `fp16` training is probably not affected by this issue.
+        - Training with `float` for SD2.x models will work now. Also training with bf16 might be improved.
+        - This issue seems to have occurred in [PR#190](https://github.com/kohya-ss/sd-scripts/pull/190).
+    - Add some metadata to LoRA model. Thanks to space-nuko!
+    - Raise an error if optimizer options conflict (e.g. `--optimizer_type` and `--use_8bit_adam`.)
+    - Support ControlNet in `gen_img_diffusers.py` (no documentation yet.)
+* 2023/02/22 (v20.8.0):
+    - Add gui support for optimizers: `AdamW, AdamW8bit, Lion, SGDNesterov, SGDNesterov8bit, DAdaptation, AdaFactor`
+    - Add gui support for `--noise_offset`
+    - Refactor optmizer options. Thanks to mgz-dev!
+        - Add `--optimizer_type` option for each training script. Please see help. Japanese documentation is [here](https://github-com.translate.goog/kohya-ss/sd-scripts/blob/main/train_network_README-ja.md?_x_tr_sl=fr&_x_tr_tl=en&_x_tr_hl=en-US&_x_tr_pto=wapp#%E3%82%AA%E3%83%97%E3%83%86%E3%82%A3%E3%83%9E%E3%82%A4%E3%82%B6%E3%81%AE%E6%8C%87%E5%AE%9A%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6).
+        - `--use_8bit_adam` and `--use_lion_optimizer` options also work and will override the options above for backward compatibility.
+    - Add SGDNesterov and its 8bit.
+    - Add [D-Adaptation](https://github.com/facebookresearch/dadaptation) optimizer. Thanks to BootsofLagrangian and all! 
+        - Please install D-Adaptation optimizer with `pip install dadaptation` (it is not in requirements.txt currently.)
+        - Please see https://github.com/kohya-ss/sd-scripts/issues/181 for details.
+    - Add AdaFactor optimizer. Thanks to Toshiaki!
+    - Extra lr scheduler settings (num_cycles etc.) are working in training scripts other than `train_network.py`.
+    - Add `--max_grad_norm` option for each training script for gradient clipping. `0.0` disables clipping. 
+    - Symbolic link can be loaded in each training script. Thanks to TkskKurumi!

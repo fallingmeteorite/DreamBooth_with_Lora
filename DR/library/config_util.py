@@ -4,7 +4,6 @@ from dataclasses import (
   dataclass,
 )
 import functools
-import random
 from textwrap import dedent, indent
 import json
 from pathlib import Path
@@ -57,8 +56,6 @@ class BaseSubsetParams:
   caption_dropout_rate: float = 0.0
   caption_dropout_every_n_epochs: int = 0
   caption_tag_dropout_rate: float = 0.0
-  token_warmup_min: int = 1
-  token_warmup_step: float = 0
 
 @dataclass
 class DreamBoothSubsetParams(BaseSubsetParams):
@@ -140,8 +137,6 @@ class ConfigSanitizer:
     "random_crop": bool,
     "shuffle_caption": bool,
     "keep_tokens": int,
-    "token_warmup_min": int,
-    "token_warmup_step": Any(float,int),
   }
   # DO means DropOut
   DO_SUBSET_ASCENDABLE_SCHEMA = {
@@ -411,8 +406,6 @@ def generate_dataset_group_by_blueprint(dataset_group_blueprint: DatasetGroupBlu
           flip_aug: {subset.flip_aug}
           face_crop_aug_range: {subset.face_crop_aug_range}
           random_crop: {subset.random_crop}
-          token_warmup_min: {subset.token_warmup_min},
-          token_warmup_step: {subset.token_warmup_step},
       """), "  ")
 
       if is_dreambooth:
@@ -429,12 +422,9 @@ def generate_dataset_group_by_blueprint(dataset_group_blueprint: DatasetGroupBlu
   print(info)
 
   # make buckets first because it determines the length of dataset
-  # and set the same seed for all datasets
-  seed = random.randint(0, 2**31) # actual seed is seed + epoch_no
   for i, dataset in enumerate(datasets):
     print(f"[Dataset {i}]")
     dataset.make_buckets()
-    dataset.set_seed(seed)
 
   return DatasetGroup(datasets)
 
@@ -445,7 +435,7 @@ def generate_dreambooth_subsets_config_by_subdirs(train_data_dir: Optional[str] 
     try:
       n_repeats = int(tokens[0])
     except ValueError as e:
-      print(f"ignore directory without repeats / 繰り返し回数のないディレクトリを無視します: {name}")
+      print(f"ignore directory without repeats / 繰り返し回数のないディレクトリを無視します: {dir}")
       return 0, ""
     caption_by_folder = '_'.join(tokens[1:])
     return n_repeats, caption_by_folder
@@ -486,8 +476,7 @@ def load_user_config(file: str) -> dict:
 
   if file.name.lower().endswith('.json'):
     try:
-      with open(file, 'r') as f:
-        config = json.load(f)
+      config = json.load(file)
     except Exception:
       print(f"Error on parsing JSON config file. Please check the format. / JSON 形式の設定ファイルの読み込みに失敗しました。文法が正しいか確認してください。: {file}")
       raise
@@ -501,6 +490,7 @@ def load_user_config(file: str) -> dict:
     raise ValueError(f"not supported config file format / 対応していない設定ファイルの形式です: {file}")
 
   return config
+
 
 # for config test
 if __name__ == "__main__":

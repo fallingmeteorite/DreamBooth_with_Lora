@@ -26,6 +26,7 @@ from library.common_gui import (
     gradio_source_model,
     # set_legacy_8bitadam,
     update_my_data,
+    check_if_model_exist,
 )
 from library.tensorboard_gui import (
     gradio_tensorboard,
@@ -110,7 +111,10 @@ def save_configuration(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,additional_parameters,
+    sample_prompts,
+    additional_parameters,
+    vae_batch_size,
+    min_snr_gamma,
 ):
     # Get list of function parameters and values
     parameters = list(locals().items())
@@ -158,6 +162,7 @@ def save_configuration(
 
 
 def open_configuration(
+    ask_for_file,
     file_path,
     pretrained_model_name_or_path,
     v2,
@@ -221,13 +226,20 @@ def open_configuration(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,additional_parameters,
+    sample_prompts,
+    additional_parameters,
+    vae_batch_size,
+    min_snr_gamma,
 ):
     # Get list of function parameters and values
     parameters = list(locals().items())
 
+    ask_for_file = True if ask_for_file.get('label') == 'True' else False
+
     original_file_path = file_path
-    file_path = get_file_path(file_path)
+
+    if ask_for_file:
+        file_path = get_file_path(file_path)
 
     if not file_path == '' and not file_path == None:
         # load variables from JSON file
@@ -243,7 +255,7 @@ def open_configuration(
     values = [file_path]
     for key, value in parameters:
         # Set the value in the dictionary to the corresponding value in `my_data`, or the default value if not found
-        if not key in ['file_path']:
+        if not key in ['ask_for_file', 'file_path']:
             values.append(my_data.get(key, value))
     return tuple(values)
 
@@ -311,7 +323,10 @@ def train_model(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,additional_parameters,
+    sample_prompts,
+    additional_parameters,
+    vae_batch_size,
+    min_snr_gamma,
 ):
     if pretrained_model_name_or_path == '':
         msgbox('Source model information is missing')
@@ -345,6 +360,13 @@ def train_model(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    if check_if_model_exist(output_name, output_dir, save_model_as):
+        return
+    
+    if optimizer == 'Adafactor' and lr_warmup != '0':
+        msgbox("Warning: lr_scheduler is set to 'Adafactor', so 'LR warmup (% of steps)' will be considered 0.", title="Warning")
+        lr_warmup = '0'
+
     # Get a list of all subfolders in train_data_dir
     subfolders = [
         f
@@ -363,11 +385,13 @@ def train_model(
         num_images = len(
             [
                 f
-                for f in os.listdir(os.path.join(train_data_dir, folder))
-                if f.endswith('.jpg')
-                or f.endswith('.jpeg')
-                or f.endswith('.png')
-                or f.endswith('.webp')
+                for f, lower_f in (
+                    (file, file.lower())
+                    for file in os.listdir(
+                        os.path.join(train_data_dir, folder)
+                    )
+                )
+                if lower_f.endswith(('.jpg', '.jpeg', '.png', '.webp'))
             ]
         )
 
@@ -499,6 +523,8 @@ def train_model(
         caption_dropout_rate=caption_dropout_rate,
         noise_offset=noise_offset,
         additional_parameters=additional_parameters,
+        vae_batch_size=vae_batch_size,
+        min_snr_gamma=min_snr_gamma,
     )
     run_cmd += f' --token_string="{token_string}"'
     run_cmd += f' --init_word="{init_word}"'
@@ -548,6 +574,7 @@ def ti_tab(
         button_save_config,
         button_save_as_config,
         config_file_name,
+        button_load_config,
     ) = gradio_config()
 
     (
@@ -556,7 +583,12 @@ def ti_tab(
         v_parameterization,
         save_model_as,
         model_list,
-    ) = gradio_source_model()
+    ) = gradio_source_model(
+        save_model_as_choices=[
+            'ckpt',
+            'safetensors',
+        ]
+    )
 
     with gr.Tab('Folders'):
         with gr.Row():
@@ -755,7 +787,10 @@ def ti_tab(
                 bucket_reso_steps,
                 caption_dropout_every_n_epochs,
                 caption_dropout_rate,
-                noise_offset,additional_parameters,
+                noise_offset,
+                additional_parameters,
+                vae_batch_size,
+                min_snr_gamma,
             ) = gradio_advanced_training()
             color_aug.change(
                 color_aug_changed,
@@ -860,12 +895,22 @@ def ti_tab(
         sample_every_n_steps,
         sample_every_n_epochs,
         sample_sampler,
-        sample_prompts,additional_parameters,
+        sample_prompts,
+        additional_parameters,
+        vae_batch_size,
+        min_snr_gamma,
     ]
 
     button_open_config.click(
         open_configuration,
-        inputs=[config_file_name] + settings_list,
+        inputs=[dummy_db_true, config_file_name] + settings_list,
+        outputs=[config_file_name] + settings_list,
+        show_progress=False,
+    )
+
+    button_load_config.click(
+        open_configuration,
+        inputs=[dummy_db_false, config_file_name] + settings_list,
         outputs=[config_file_name] + settings_list,
         show_progress=False,
     )

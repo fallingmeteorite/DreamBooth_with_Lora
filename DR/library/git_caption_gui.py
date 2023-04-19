@@ -27,9 +27,7 @@ def caption_images(
         return
 
     print(f'GIT captioning files in {train_data_dir}...')
-    run_cmd = (
-        f'{PYTHON} finetune/make_captions_by_git.py'
-    )
+    run_cmd = f'.\\venv\\Scripts\\python.exe "finetune/make_captions_by_git.py"'
     if not model_id == '':
         run_cmd += f' --model_id="{model_id}"'
     run_cmd += f' --batch_size="{int(batch_size)}"'
@@ -44,10 +42,7 @@ def caption_images(
     print(run_cmd)
 
     # Run the command
-    if os.name == 'posix':
-        os.system(run_cmd)
-    else:
-        subprocess.run(run_cmd)
+    subprocess.run(run_cmd)
 
     # Add prefix and postfix
     add_pre_postfix(

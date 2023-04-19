@@ -4,7 +4,6 @@
 # v3.1: Adding captionning of images to utilities
 
 import gradio as gr
-import easygui
 import json
 import math
 import os
@@ -27,7 +26,6 @@ from library.common_gui import (
     run_cmd_training,
     # set_legacy_8bitadam,
     update_my_data,
-    check_if_model_exist,
 )
 from library.dreambooth_folder_creation_gui import (
     gradio_dreambooth_folder_creation_tab,
@@ -40,7 +38,6 @@ from library.tensorboard_gui import (
 from library.dataset_balancing_gui import gradio_dataset_balancing_tab
 from library.utilities import utilities_tab
 from library.merge_lora_gui import gradio_merge_lora_tab
-from library.svd_merge_lora_gui import gradio_svd_merge_lora_tab
 from library.verify_lora_gui import gradio_verify_lora_tab
 from library.resize_lora_gui import gradio_resize_lora_tab
 from library.sampler_gui import sample_gradio_config, run_cmd_sample
@@ -122,12 +119,7 @@ def save_configuration(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,
-    additional_parameters,
-    vae_batch_size,
-    min_snr_gamma,
-    down_lr_weight,mid_lr_weight,up_lr_weight,block_lr_zero_threshold,block_dims,block_alphas,conv_dims,conv_alphas,
-    weighted_captions,unit,
+    sample_prompts,additional_parameters,
 ):
     # Get list of function parameters and values
     parameters = list(locals().items())
@@ -175,7 +167,6 @@ def save_configuration(
 
 
 def open_configuration(
-    ask_for_file,
     file_path,
     pretrained_model_name_or_path,
     v2,
@@ -243,30 +234,20 @@ def open_configuration(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,
-    additional_parameters,
-    vae_batch_size,
-    min_snr_gamma,
-    down_lr_weight,mid_lr_weight,up_lr_weight,block_lr_zero_threshold,block_dims,block_alphas,conv_dims,conv_alphas,
-    weighted_captions,unit,
+    sample_prompts,additional_parameters,
 ):
     # Get list of function parameters and values
     parameters = list(locals().items())
 
-    ask_for_file = True if ask_for_file.get('label') == 'True' else False
-
     original_file_path = file_path
-
-    if ask_for_file:
-        file_path = get_file_path(file_path)
+    file_path = get_file_path(file_path)
 
     if not file_path == '' and not file_path == None:
         # load variables from JSON file
         with open(file_path, 'r') as f:
             my_data = json.load(f)
             print('Loading config...')
-
-            # Update values to fix deprecated use_8bit_adam checkbox, set appropriate optimizer if it is set to True, etc.
+            # Update values to fix deprecated use_8bit_adam checkbox and set appropriate optimizer if it is set to True
             my_data = update_my_data(my_data)
     else:
         file_path = original_file_path  # In case a file_path was provided and the user decide to cancel the open action
@@ -275,7 +256,7 @@ def open_configuration(
     values = [file_path]
     for key, value in parameters:
         # Set the value in the dictionary to the corresponding value in `my_data`, or the default value if not found
-        if not key in ['ask_for_file', 'file_path']:
+        if not key in ['file_path']:
             values.append(my_data.get(key, value))
 
     # This next section is about making the LoCon parameters visible if LoRA_type = 'Standard'
@@ -355,15 +336,10 @@ def train_model(
     sample_every_n_steps,
     sample_every_n_epochs,
     sample_sampler,
-    sample_prompts,
-    additional_parameters,
-    vae_batch_size,
-    min_snr_gamma,
-    down_lr_weight,mid_lr_weight,up_lr_weight,block_lr_zero_threshold,block_dims,block_alphas,conv_dims,conv_alphas,
-    weighted_captions,unit,
+    sample_prompts,additional_parameters,
 ):
     print_only_bool = True if print_only.get('label') == 'True' else False
-
+    
     if pretrained_model_name_or_path == '':
         msgbox('Source model information is missing')
         return
@@ -398,13 +374,6 @@ def train_model(
         )
         stop_text_encoder_training_pct = 0
 
-    if check_if_model_exist(output_name, output_dir, save_model_as):
-        return
-    
-    if optimizer == 'Adafactor' and lr_warmup != '0':
-        msgbox("Warning: lr_scheduler is set to 'Adafactor', so 'LR warmup (% of steps)' will be considered 0.", title="Warning")
-        lr_warmup = '0'
-
     # If string is empty set string to 0.
     if text_encoder_lr == '':
         text_encoder_lr = 0
@@ -435,25 +404,20 @@ def train_model(
         num_images = len(
             [
                 f
-                for f, lower_f in (
-                    (file, file.lower())
-                    for file in os.listdir(
-                        os.path.join(train_data_dir, folder)
-                    )
-                )
-                if lower_f.endswith(('.jpg', '.jpeg', '.png', '.webp'))
+                for f in os.listdir(os.path.join(train_data_dir, folder))
+                if f.endswith('.jpg')
+                or f.endswith('.jpeg')
+                or f.endswith('.png')
+                or f.endswith('.webp')
             ]
         )
 
-        print(f'Folder {folder}: {num_images} images found')
-
         # Calculate the total number of steps for this folder
         steps = repeats * num_images
+        total_steps += steps
 
         # Print the result
         print(f'Folder {folder}: {steps} steps')
-
-        total_steps += steps
 
     # calculate max_train_steps
     max_train_steps = int(
@@ -480,6 +444,8 @@ def train_model(
 
     run_cmd = f'accelerate launch --num_cpu_threads_per_process={num_cpu_threads_per_process} "train_network.py"'
 
+    # run_cmd += f' --caption_dropout_rate="0.1" --caption_dropout_every_n_epochs=1'   # --random_crop'
+
     if v2:
         run_cmd += ' --v2'
     if v_parameterization:
@@ -488,8 +454,6 @@ def train_model(
         run_cmd += ' --enable_bucket'
     if no_token_padding:
         run_cmd += ' --no_token_padding'
-    if weighted_captions:
-        run_cmd += ' --weighted_captions'
     run_cmd += (
         f' --pretrained_model_name_or_path="{pretrained_model_name_or_path}"'
     )
@@ -510,59 +474,25 @@ def train_model(
         run_cmd += f' --save_model_as={save_model_as}'
     if not float(prior_loss_weight) == 1.0:
         run_cmd += f' --prior_loss_weight={prior_loss_weight}'
-    if LoRA_type == 'LoCon' or LoRA_type == 'LyCORIS/LoCon':
+    if LoRA_type == 'LoCon':
         try:
-            import lycoris
+            import locon.locon_kohya
         except ModuleNotFoundError:
             print(
-                "\033[1;31mError:\033[0m The required module 'lycoris_lora' is not installed. Please install by running \033[33mupgrade.ps1\033[0m before running this program."
+                "\033[1;31mError:\033[0m The required module 'locon' is not installed. Please install by running \033[33mupgrade.ps1\033[0m before running this program."
             )
             return
-        run_cmd += f' --network_module=lycoris.kohya'
-        run_cmd += f' --network_args "conv_dim={conv_dim}" "conv_alpha={conv_alpha}" "algo=lora"'
-    if LoRA_type == 'LyCORIS/LoHa':
-        try:
-            import lycoris
-        except ModuleNotFoundError:
-            print(
-                "\033[1;31mError:\033[0m The required module 'lycoris_lora' is not installed. Please install by running \033[33mupgrade.ps1\033[0m before running this program."
-            )
-            return
-        run_cmd += f' --network_module=lycoris.kohya'
-        run_cmd += f' --network_args "conv_dim={conv_dim}" "conv_alpha={conv_alpha}" "algo=loha"'
-    
-        
-    if LoRA_type in ['Kohya LoCon', 'Standard']:
-        kohya_lora_var_list = ['down_lr_weight', 'mid_lr_weight', 'up_lr_weight', 'block_lr_zero_threshold', 'block_dims', 'block_alphas', 'conv_dims', 'conv_alphas']
-        
+        run_cmd += f' --network_module=locon.locon_kohya'
+        run_cmd += (
+            f' --network_args "conv_dim={conv_dim}" "conv_alpha={conv_alpha}"'
+        )
+    if LoRA_type == 'Kohya LoCon':
         run_cmd += f' --network_module=networks.lora'
-        kohya_lora_vars = {key: value for key, value in vars().items() if key in kohya_lora_var_list and value}
-
-        network_args = ''
-        if LoRA_type == 'Kohya LoCon':
-            network_args += f' "conv_dim={conv_dim}" "conv_alpha={conv_alpha}"'
-
-        for key, value in kohya_lora_vars.items():
-            if value:
-                network_args += f' {key}="{value}"'
-
-        if network_args:
-            run_cmd += f' --network_args{network_args}'
-            
-    if LoRA_type in ['Kohya DyLoRA']:
-        kohya_lora_var_list = ['conv_dim', 'conv_alpha', 'down_lr_weight', 'mid_lr_weight', 'up_lr_weight', 'block_lr_zero_threshold', 'block_dims', 'block_alphas', 'conv_dims', 'conv_alphas', 'unit']
-        
-        run_cmd += f' --network_module=networks.dylora'
-        kohya_lora_vars = {key: value for key, value in vars().items() if key in kohya_lora_var_list and value}
-
-        network_args = ''
-
-        for key, value in kohya_lora_vars.items():
-            if value:
-                network_args += f' {key}="{value}"'
-
-        if network_args:
-            run_cmd += f' --network_args{network_args}'
+        run_cmd += (
+            f' --network_args "conv_lora_dim={conv_dim}" "conv_alpha={conv_alpha}"'
+        )
+    if LoRA_type == 'Standard':
+        run_cmd += f' --network_module=networks.lora'
 
     if not (float(text_encoder_lr) == 0) or not (float(unet_lr) == 0):
         if not (float(text_encoder_lr) == 0) and not (float(unet_lr) == 0):
@@ -634,8 +564,6 @@ def train_model(
         caption_dropout_rate=caption_dropout_rate,
         noise_offset=noise_offset,
         additional_parameters=additional_parameters,
-        vae_batch_size=vae_batch_size,
-        min_snr_gamma=min_snr_gamma,
     )
 
     run_cmd += run_cmd_sample(
@@ -645,31 +573,9 @@ def train_model(
         sample_prompts,
         output_dir,
     )
-    
-    # if not down_lr_weight == '':
-    #     run_cmd += f' --down_lr_weight="{down_lr_weight}"'
-    # if not mid_lr_weight == '':
-    #     run_cmd += f' --mid_lr_weight="{mid_lr_weight}"'
-    # if not up_lr_weight == '':
-    #     run_cmd += f' --up_lr_weight="{up_lr_weight}"'
-    # if not block_lr_zero_threshold == '':
-    #     run_cmd += f' --block_lr_zero_threshold="{block_lr_zero_threshold}"'
-    # if not block_dims == '':
-    #     run_cmd += f' --block_dims="{block_dims}"'
-    # if not block_alphas == '':
-    #     run_cmd += f' --block_alphas="{block_alphas}"'
-    # if not conv_dims == '':
-    #     run_cmd += f' --conv_dims="{conv_dims}"'
-    # if not conv_alphas == '':
-    #     run_cmd += f' --conv_alphas="{conv_alphas}"'
-        
 
-
-
-    if print_only_bool:
-        print(
-            '\033[93m\nHere is the trainer command as a reference. It will not be executed:\033[0m\n'
-        )
+    if  print_only_bool:
+        print('\033[93m\nHere is the trainer command as a reference. It will not be executed:\033[0m\n')
         print('\033[96m' + run_cmd + '\033[0m\n')
     else:
         print(run_cmd)
@@ -684,9 +590,7 @@ def train_model(
 
         if not last_dir.is_dir():
             # Copy inference model for v2 if required
-            save_inference_file(
-                output_dir, v2, v_parameterization, output_name
-            )
+            save_inference_file(output_dir, v2, v_parameterization, output_name)
 
 
 def lora_tab(
@@ -705,7 +609,6 @@ def lora_tab(
         button_save_config,
         button_save_as_config,
         config_file_name,
-        button_load_config,
     ) = gradio_config()
 
     (
@@ -714,12 +617,7 @@ def lora_tab(
         v_parameterization,
         save_model_as,
         model_list,
-    ) = gradio_source_model(
-        save_model_as_choices=[
-            'ckpt',
-            'safetensors',
-        ]
-    )
+    ) = gradio_source_model()
 
     with gr.Tab('Folders'):
         with gr.Row():
@@ -801,11 +699,8 @@ def lora_tab(
             LoRA_type = gr.Dropdown(
                 label='LoRA type',
                 choices=[
-                    'Kohya DyLoRA',
                     'Kohya LoCon',
-                    # 'LoCon',
-                    'LyCORIS/LoCon',
-                    'LyCORIS/LoHa',
+                    'LoCon',
                     'Standard',
                 ],
                 value='Standard',
@@ -864,14 +759,14 @@ def lora_tab(
                 interactive=True,
             )
             network_alpha = gr.Slider(
-                minimum=0.1,
+                minimum=1,
                 maximum=1024,
                 label='Network Alpha',
                 value=1,
-                step=0.1,
+                step=1,
                 interactive=True,
-                info='alpha for LoRA weight scaling',
             )
+
         with gr.Row(visible=False) as LoCon_row:
 
             # locon= gr.Checkbox(label='Train a LoCon instead of a general LoRA (does not support v2 base models) (may not be able to some utilities now)', value=False)
@@ -880,53 +775,31 @@ def lora_tab(
                 maximum=512,
                 value=1,
                 step=1,
-                label='Convolution Rank (Dimension)',
+                label='LoCon Convolution Rank (Dimension)',
             )
             conv_alpha = gr.Slider(
-                minimum=0.1,
+                minimum=1,
                 maximum=512,
                 value=1,
-                step=0.1,
-                label='Convolution Alpha',
-            )
-        with gr.Row(visible=False) as kohya_dylora:
-            unit = gr.Slider(
-                minimum=1,
-                maximum=64,
-                label='DyLoRA Unit',
-                value=1,
                 step=1,
-                interactive=True,
+                label='LoCon Convolution Alpha',
             )
-            
         # Show of hide LoCon conv settings depending on LoRA type selection
-        def update_LoRA_settings(LoRA_type):
-            # Print a message when LoRA type is changed
+        def LoRA_type_change(LoRA_type):
             print('LoRA type changed...')
+            if LoRA_type == 'LoCon' or LoRA_type == 'Kohya LoCon':
+                return gr.Group.update(visible=True)
+            else:
+                return gr.Group.update(visible=False)
 
-            # Determine if LoCon_row should be visible based on LoRA_type
-            LoCon_row = LoRA_type in {'LoCon', 'Kohya DyLoRA', 'Kohya LoCon', 'LyCORIS/LoHa', 'LyCORIS/LoCon'}
-
-            # Determine if LoRA_type_change should be visible based on LoRA_type
-            LoRA_type_change = LoRA_type in {'Standard', 'Kohya DyLoRA', 'Kohya LoCon'}
-
-            # Determine if kohya_dylora_visible should be visible based on LoRA_type
-            kohya_dylora_visible = LoRA_type == 'Kohya DyLoRA'
-
-            # Return the updated visibility settings for the groups
-            return (
-                gr.Group.update(visible=LoCon_row),
-                gr.Group.update(visible=LoRA_type_change),
-                gr.Group.update(visible=kohya_dylora_visible),
-            )
-
-
+        LoRA_type.change(
+            LoRA_type_change, inputs=[LoRA_type], outputs=[LoCon_row]
+        )
         with gr.Row():
             max_resolution = gr.Textbox(
                 label='Max resolution',
                 value='512,512',
                 placeholder='512,512',
-                info='The maximum resolution of dataset images. W,H',
             )
             stop_text_encoder_training = gr.Slider(
                 minimum=0,
@@ -934,68 +807,15 @@ def lora_tab(
                 value=0,
                 step=1,
                 label='Stop text encoder training',
-                info='After what % of steps should the text encoder stop being trained. 0 = train for all steps.',
             )
-            enable_bucket = gr.Checkbox(label='Enable buckets', value=True,
-                info='Allow non similar resolution dataset images to be trained on.',)
-            
+            enable_bucket = gr.Checkbox(label='Enable buckets', value=True)
         with gr.Accordion('Advanced Configuration', open=False):
-            with gr.Row(visible=True) as kohya_advanced_lora:
-                with gr.Tab(label='Weights'):
-                    with gr.Row(visible=True):
-                        down_lr_weight = gr.Textbox(
-                            label='Down LR weights',
-                            placeholder='(Optional) eg: 0,0,0,0,0,0,1,1,1,1,1,1',
-                            info='Specify the learning rate weight of the down blocks of U-Net.'
-                        )
-                        mid_lr_weight = gr.Textbox(
-                            label='Mid LR weights',
-                            placeholder='(Optional) eg: 0.5',
-                            info='Specify the learning rate weight of the mid block of U-Net.'
-                        )
-                        up_lr_weight = gr.Textbox(
-                            label='Up LR weights',
-                            placeholder='(Optional) eg: 0,0,0,0,0,0,1,1,1,1,1,1',
-                            info='Specify the learning rate weight of the up blocks of U-Net. The same as down_lr_weight.'
-                        )
-                        block_lr_zero_threshold = gr.Textbox(
-                            label='Blocks LR zero threshold',
-                            placeholder='(Optional) eg: 0.1',
-                            info='If the weight is not more than this value, the LoRA module is not created. The default is 0.'
-                        )
-                with gr.Tab(label='Blocks'):
-                    with gr.Row(visible=True):
-                        block_dims = gr.Textbox(
-                            label='Block dims',
-                            placeholder='(Optional) eg: 2,2,2,2,4,4,4,4,6,6,6,6,8,6,6,6,6,4,4,4,4,2,2,2,2',
-                            info='Specify the dim (rank) of each block. Specify 25 numbers.'
-                        )
-                        block_alphas = gr.Textbox(
-                            label='Block alphas',
-                            placeholder='(Optional) eg: 2,2,2,2,4,4,4,4,6,6,6,6,8,6,6,6,6,4,4,4,4,2,2,2,2',
-                            info='Specify the alpha of each block. Specify 25 numbers as with block_dims. If omitted, the value of network_alpha is used.'
-                        )
-                with gr.Tab(label='Conv'):
-                    with gr.Row(visible=True):
-                        conv_dims = gr.Textbox(
-                            label='Conv dims',
-                            placeholder='(Optional) eg: 2,2,2,2,4,4,4,4,6,6,6,6,8,6,6,6,6,4,4,4,4,2,2,2,2',
-                            info='Expand LoRA to Conv2d 3x3 and specify the dim (rank) of each block. Specify 25 numbers.'
-                        )
-                        conv_alphas = gr.Textbox(
-                            label='Conv alphas',
-                            placeholder='(Optional) eg: 2,2,2,2,4,4,4,4,6,6,6,6,8,6,6,6,6,4,4,4,4,2,2,2,2',
-                            info='Specify the alpha of each block when expanding LoRA to Conv2d 3x3. Specify 25 numbers. If omitted, the value of conv_alpha is used.'
-                        )
             with gr.Row():
                 no_token_padding = gr.Checkbox(
                     label='No token padding', value=False
                 )
                 gradient_accumulation_steps = gr.Number(
                     label='Gradient accumulate steps', value='1'
-                )
-                weighted_captions = gr.Checkbox(
-                    label='Weighted captions', value=False, info='Enable weighted captions in the standard style (token:1.3). No commas inside parens, or shuffle/dropout may break the decoder.',
                 )
             with gr.Row():
                 prior_loss_weight = gr.Number(
@@ -1032,10 +852,7 @@ def lora_tab(
                 bucket_reso_steps,
                 caption_dropout_every_n_epochs,
                 caption_dropout_rate,
-                noise_offset,
-                additional_parameters,
-                vae_batch_size,
-                min_snr_gamma,
+                noise_offset,additional_parameters,
             ) = gradio_advanced_training()
             color_aug.change(
                 color_aug_changed,
@@ -1049,10 +866,6 @@ def lora_tab(
             sample_sampler,
             sample_prompts,
         ) = sample_gradio_config()
-        
-        LoRA_type.change(
-            update_LoRA_settings, inputs=[LoRA_type], outputs=[LoCon_row, kohya_advanced_lora, kohya_dylora]
-        )
 
     with gr.Tab('Tools'):
         gr.Markdown(
@@ -1066,12 +879,11 @@ def lora_tab(
         )
         gradio_dataset_balancing_tab()
         gradio_merge_lora_tab()
-        gradio_svd_merge_lora_tab()
         gradio_resize_lora_tab()
         gradio_verify_lora_tab()
 
     button_run = gr.Button('Train model', variant='primary')
-
+    
     button_print = gr.Button('Print training command')
 
     # Setup gradio tensorboard buttons
@@ -1155,24 +967,12 @@ def lora_tab(
         sample_every_n_steps,
         sample_every_n_epochs,
         sample_sampler,
-        sample_prompts,
-        additional_parameters,
-        vae_batch_size,
-        min_snr_gamma,
-        down_lr_weight,mid_lr_weight,up_lr_weight,block_lr_zero_threshold,block_dims,block_alphas,conv_dims,conv_alphas,
-        weighted_captions, unit,
+        sample_prompts,additional_parameters,
     ]
 
     button_open_config.click(
         open_configuration,
-        inputs=[dummy_db_true, config_file_name] + settings_list,
-        outputs=[config_file_name] + settings_list + [LoCon_row],
-        show_progress=False,
-    )
-
-    button_load_config.click(
-        open_configuration,
-        inputs=[dummy_db_false, config_file_name] + settings_list,
+        inputs=[config_file_name] + settings_list,
         outputs=[config_file_name] + settings_list + [LoCon_row],
         show_progress=False,
     )
@@ -1196,7 +996,7 @@ def lora_tab(
         inputs=[dummy_db_false] + settings_list,
         show_progress=False,
     )
-
+    
     button_print.click(
         train_model,
         inputs=[dummy_db_true] + settings_list,
@@ -1249,8 +1049,6 @@ def UI(**kwargs):
         launch_kwargs['server_port'] = kwargs.get('server_port', 0)
     if kwargs.get('inbrowser', False):
         launch_kwargs['inbrowser'] = kwargs.get('inbrowser', False)
-    if kwargs.get('listen', True):
-        launch_kwargs['server_name'] = '0.0.0.0'
     print(launch_kwargs)
     interface.launch(**launch_kwargs)
 
@@ -1272,11 +1070,6 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--inbrowser', action='store_true', help='Open in browser'
-    )
-    parser.add_argument(
-        '--listen',
-        action='store_true',
-        help='Launch gradio with server name 0.0.0.0, allowing LAN access',
     )
 
     args = parser.parse_args()

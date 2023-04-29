@@ -36,12 +36,12 @@ while True:
 
 while True:
     buer_three = input(r'请问你是否想要更新(第一次安装不选)yes/no:')
-    if buer_two == 'yes':
+    if buer_three == 'yes':
         print(r'开始更新')
         os.system(r'pip install --use-pep517 --upgrade -r DE\requirements.txt --no-warn-script-location -i ' + net)
         sys.exit(0)
         break
-    elif buer_two == 'no':
+    elif buer_three == 'no':
         print(r'跳过')
         break
     else:

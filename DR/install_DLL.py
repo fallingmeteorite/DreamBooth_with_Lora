@@ -3,12 +3,15 @@ import zipfile
 import shutil
 import os
 print("开始解压mwxKTEtelILoIbMbruuM.zip")
-with zipfile.ZipFile(r"DR\mwxKTEtelILoIbMbruuM.zip") as zf:
-    zf.extractall()
-print("解压完成")
-time.sleep(2)
-print("开始移动文件")
-
+try:
+    with zipfile.ZipFile(r"DR\mwxKTEtelILoIbMbruuM.zip") as zf:
+        zf.extractall()
+    print("解压完成")
+    time.sleep(2)
+    print("开始移动文件")
+except:
+    print(r'跳过')
+    pass
 origin_path_one=r'cudnn_windows\cudnn_adv_infer64_8.dll'
 origin_path_two=r'cudnn_windows\cudnn_cnn_infer64_8.dll'
 origin_path_three=r'cudnn_windows\cudnn_cnn_train64_8.dll'
@@ -29,6 +32,9 @@ except:
     print("已存在")
 time.sleep(4)
 print("删除源文件")
-os.remove("DR\mwxKTEtelILoIbMbruuM.zip")
+try:
+    os.remove("DR\mwxKTEtelILoIbMbruuM.zip")
+except:
+    pass
 print("源文件删除完成")
 

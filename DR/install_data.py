@@ -62,6 +62,7 @@ if os.path.exists('torchvision-0.15.0.dev20230206+cu116-cp310-cp310-win_amd64.wh
         print(r'以下有两种方法')
         print(r' 1 自动下载(速度较快)')
         print(r' 2 手动用下载器下载(速度最快)')
+        print(r' 3 你已安装(跳过下载)')
         buer_three = input('你的选择是？(输入方法前面的数字):')
         if buer_three == '2':
             print(r'https://huggingface.co/Fallingmeteorite/xformers-0.0.17/resolve/main/xformers-0.0.17%2Bb89a493.d20230304-cp310-cp310-win_amd64.whl')
@@ -84,6 +85,8 @@ if os.path.exists('torchvision-0.15.0.dev20230206+cu116-cp310-cp310-win_amd64.wh
             print(1)
             time.sleep(1)
             exit()
+        elif buer_three == '3':
+            sys.exit(0)
         elif buer_three == '1':
             print(r'请保证网络畅通，即将开始下载文件')
             print(r'花费时间根据网速决定')

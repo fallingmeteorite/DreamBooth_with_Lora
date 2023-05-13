@@ -122,6 +122,4 @@ E:\Python\Library\mingw-w64\bin
 
 # 如何更新
 
-在目标文件夹打开cmd
-
-输入 git pull或在启动器中更新
+软件中点击更新包
